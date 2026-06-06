@@ -11,6 +11,11 @@ on:
 permissions:
   contents: write
 
+# Run the JavaScript actions on Node.js 24 (the default from 2026-06-16);
+# silences the Node 20 deprecation warning without pinning action versions.
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   release:
     # Windows, because nuget.config points to a local feed via a backslash path
