@@ -1,0 +1,8 @@
+{
+  "id": "forzahorizon6",
+  "name": "Forza Horizon 6",
+  "version": "1.0.0",
+  "sdkVersion": "1.6",
+  "entryAssembly": "LoupixDeck.Plugin.ForzaHorizon6.dll",
+  "platform": "All"
+}

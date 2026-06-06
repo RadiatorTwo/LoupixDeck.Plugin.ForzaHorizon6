@@ -1,0 +1,10 @@
+bin/
+obj/
+dist/
+*.user
+.vs/
+.idea/
+
+# Local-only / not needed in the repo
+CLAUDE.md
+release.ps1
