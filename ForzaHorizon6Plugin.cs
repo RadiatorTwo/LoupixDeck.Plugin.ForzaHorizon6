@@ -19,7 +19,7 @@ public sealed class ForzaHorizon6Plugin : LoupixPlugin
     {
         Id = "forzahorizon6",
         Name = "Forza Horizon 6",
-        Version = new Version(1, 0, 0),
+        Version = new Version(0, 1, 0),
         SdkVersion = SdkInfo.Version,
         Author = "RadiatorTwo",
         Description = "Displays Forza Horizon telemetry on the touch buttons via the Data Out UDP stream."
