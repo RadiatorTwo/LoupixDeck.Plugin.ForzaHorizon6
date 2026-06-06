@@ -74,12 +74,3 @@ The port is read from the host settings (`host.Settings`).
 ```
 
 The tire temperatures (FL/FR over RL/RR) form a 2×2 block that spatially maps the car's corners.
-
-## Notes
-
-- The packet offsets follow the documented FH5 / FM "Car Dash V2" layout and assume FH6 backwards compatibility. Should the format change, the offsets in `Telemetry/ForzaPacket.cs` are the first place to look.
-- `CommandName` values (e.g. `ForzaHorizon6.Activate`) are stable public API and are not renamed after release.
-
-## License
-
-Not yet defined.
