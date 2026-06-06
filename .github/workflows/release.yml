@@ -1,0 +1,75 @@
+name: Release Plugin
+
+# Pushing a tag (e.g. v1.0.0) creates a GitHub release with the plugin zip.
+# A manual run (workflow_dispatch) only builds the zip as an artifact.
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    # Windows, because nuget.config points to a local feed via a backslash path
+    # (..\LoupixDeck.PluginSdk\nupkg) which NuGet would not treat as a path on Linux.
+    runs-on: windows-latest
+
+    steps:
+      # Check out plugin and SDK as sibling folders so the relative feed path
+      # from nuget.config (..\LoupixDeck.PluginSdk\nupkg) resolves.
+      - name: Checkout plugin
+        uses: actions/checkout@v4
+        with:
+          path: LoupixDeck.Plugin.ForzaHorizon6
+
+      - name: Checkout SDK
+        uses: actions/checkout@v4
+        with:
+          repository: RadiatorTwo/LoupixDeck.PluginSdk
+          path: LoupixDeck.PluginSdk
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      # Produces LoupixDeck.PluginSdk.nupkg in the local feed (GeneratePackageOnBuild).
+      - name: Build SDK package
+        run: dotnet build -c Release LoupixDeck.PluginSdk/LoupixDeck.PluginSdk.csproj
+
+      - name: Build plugin
+        run: dotnet build -c Release LoupixDeck.Plugin.ForzaHorizon6/LoupixDeck.Plugin.ForzaHorizon6.csproj
+
+      # Assemble the plugin folder: DLL + deps.json from bin\Release,
+      # plugin.json from the repo root. Folder name = plugin id (forzahorizon6).
+      - name: Stage and zip
+        id: package
+        shell: pwsh
+        run: |
+          $rel = "LoupixDeck.Plugin.ForzaHorizon6/bin/Release"
+          $out = "staging/forzahorizon6"
+          New-Item -ItemType Directory -Force -Path $out | Out-Null
+          Copy-Item "$rel/LoupixDeck.Plugin.ForzaHorizon6.dll"      $out
+          Copy-Item "$rel/LoupixDeck.Plugin.ForzaHorizon6.deps.json" $out
+          Copy-Item "LoupixDeck.Plugin.ForzaHorizon6/plugin.json"   $out
+
+          $ver = (Get-Content "LoupixDeck.Plugin.ForzaHorizon6/plugin.json" | ConvertFrom-Json).version
+          $zip = "LoupixDeck.Plugin.ForzaHorizon6-$ver.zip"
+          Compress-Archive -Path $out -DestinationPath $zip -Force
+          "zip=$zip" >> $env:GITHUB_OUTPUT
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.package.outputs.zip }}
+          path: ${{ steps.package.outputs.zip }}
+
+      # Tag pushes only: create a GitHub release with the zip attached.
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ steps.package.outputs.zip }}
