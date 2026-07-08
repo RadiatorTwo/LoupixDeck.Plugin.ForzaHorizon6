@@ -20,7 +20,9 @@ public sealed class ActivateCommand : IPluginCommand
     {
         CommandName = "ForzaHorizon6.Activate",
         DisplayName = "Re-arm Forza HUD",
-        Group = "ForzaHorizon6"
+        Group = "ForzaHorizon6",
+        Icon = "\U000F0450",
+        Description = "Re-enter the live HUD after a manual exit"
     };
 
     public ButtonTargets SupportedTargets => ButtonTargets.All;

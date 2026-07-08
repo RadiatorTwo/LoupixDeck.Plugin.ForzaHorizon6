@@ -20,7 +20,7 @@ public sealed class ForzaHorizon6Plugin : LoupixPlugin
         Id = "forzahorizon6",
         Name = "Forza Horizon 6",
         Version = new Version(0, 1, 0),
-        SdkVersion = SdkInfo.Version,
+        SdkVersion = new Version(1, 16, 0),
         Author = "RadiatorTwo",
         Description = "Displays Forza Horizon telemetry on the touch buttons via the Data Out UDP stream."
     };
@@ -65,6 +65,17 @@ public sealed class ForzaHorizon6Plugin : LoupixPlugin
     {
         if (_activateCommand != null) yield return _activateCommand;
     }
+
+    public override IReadOnlyList<CommandGroupDescriptor> GetCommandGroups() =>
+    [
+        new CommandGroupDescriptor
+        {
+            Group = "ForzaHorizon6",
+            Description = "Live race telemetry",
+            Icon = "\U000F0297",
+            Section = CommandGroupSection.Plugins
+        }
+    ];
 
     public override void Shutdown()
     {
