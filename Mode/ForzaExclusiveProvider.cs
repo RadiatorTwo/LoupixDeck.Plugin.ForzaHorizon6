@@ -52,16 +52,20 @@ public sealed class ForzaExclusiveProvider : IExclusiveModeProvider
     private static readonly PluginColor GripLow = PluginColor.FromRgb(0xFF, 0x1E, 0x1E);
 
     private readonly IPluginHost _host;
-    private readonly Action _onUserDisable;
     private ForzaPacket _latest;
+    private volatile bool _isActive;
 
-    public ForzaExclusiveProvider(IPluginHost host, Action onUserDisable)
+    public ForzaExclusiveProvider(IPluginHost host)
     {
         _host = host;
-        _onUserDisable = onUserDisable;
     }
 
     public string Title => "Forza Horizon";
+
+    /// <summary>True while this provider currently owns the display. Tracked from
+    /// <see cref="OnEnter"/>/<see cref="OnExit"/>, which the host also calls when a profile/workspace
+    /// switch force-exits the takeover — so the plugin stops feeding packets in every exit path.</summary>
+    public bool IsActive => _isActive;
 
     // The HUD changes only a few tiles per packet (speed/gear/rpm/grip flicker,
     // tire temps drift slowly) — most stay identical frame to frame. DirtyTiles
@@ -72,9 +76,9 @@ public sealed class ForzaExclusiveProvider : IExclusiveModeProvider
 
     public event EventHandler? EntriesChanged;
 
-    public void OnEnter() { /* nothing to wire — packets drive RaiseChanged */ }
+    public void OnEnter() { _isActive = true; /* packets drive RaiseChanged while active */ }
 
-    public void OnExit() { /* nothing to release */ }
+    public void OnExit() { _isActive = false; /* also covers a host-forced exit on profile switch */ }
 
     /// <summary>Called by the listener with each accepted packet.</summary>
     public void PushPacket(ForzaPacket pkt)
@@ -251,7 +255,8 @@ public sealed class ForzaExclusiveProvider : IExclusiveModeProvider
 
     private void RequestExit()
     {
-        _onUserDisable();
+        // Leave exclusive mode; the host calls OnExit, which clears IsActive. The HUD does not
+        // auto-reappear — the user re-enters via the ForzaHorizon6.Activate command.
         _host.ReleaseExclusiveMode(this);
     }
 }
