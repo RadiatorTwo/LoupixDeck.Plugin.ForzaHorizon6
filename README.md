@@ -2,7 +2,7 @@
 
 A [LoupixDeck](https://github.com/) plugin that displays **Forza Horizon Data-Out** telemetry live on the touch buttons of a Loupedeck device.
 
-As soon as Forza starts sending telemetry packets, the plugin takes over the device in *Exclusive Mode* and shows a HUD with speed, gear, RPM, grip, drift and tire-temperature readouts — until the user exits via button.
+Run the **Show Forza HUD** command to take the touch grid over in *Exclusive Mode* and show a HUD with speed, gear, RPM, grip, drift and tire-temperature readouts — until the user taps `EXIT`. The HUD is never entered automatically; it appears only when you run the command. It claims **only the touch buttons**, so the dials, the hardware buttons and the side displays keep working normally while it is up.
 
 ## Features
 
@@ -11,9 +11,9 @@ As soon as Forza starts sending telemetry packets, the plugin takes over the dev
   - **Grip warning** with axle detection (`FRONT SLIP` / `REAR SLIP`) and a blinking critical tier
   - **Drift angle** in degrees with a color ramp (green → yellow → red)
   - **Tire temperatures** for all four corners as a 2×2 block, color-coded (cold = blue, optimal = green, hot = red)
-- **Automatic takeover:** On the first valid packet the plugin requests Exclusive Mode. If another plugin still owns the device, the sample is dropped silently and retried on the next packet.
-- **Manual exit:** Via the `EXIT` hardware button (SimpleButton 0) or by tapping the `EXIT` tile.
-- **Re-arm command** (`ForzaHorizon6.Activate`): Re-enables the automatic takeover after a manual exit — the next telemetry packet then triggers the transition again.
+- **Command-started takeover** (`ForzaHorizon6.Activate`, "Show Forza HUD"): bind it to a button and run it to enter Exclusive Mode and show the HUD. It never starts on its own, and does not reappear after an exit or a profile switch — run the command again to bring it back. If another plugin owns the display, the command is a no-op and logs a warning.
+- **Touch-buttons-only takeover** (`ExclusiveControlScope.TouchButtons`, SDK 1.19.0): the HUD occupies the grid and nothing else. Rotary turns and presses, the hardware buttons and the side displays stay on the user's own page assignments — adjust the volume or switch rotary pages without leaving the HUD.
+- **Manual exit:** By tapping the `EXIT` tile (slot 0). The hardware buttons are no longer claimed, so they run their normal commands instead.
 - **Efficient rendering** via `DirtyTiles`: only the tiles whose content actually changed are re-sent.
 
 ## How it works
@@ -21,13 +21,13 @@ As soon as Forza starts sending telemetry packets, the plugin takes over the dev
 - **`Udp/ForzaUdpListener.cs`** – Receives the UDP datagrams on a background task, parses them, and forwards valid packets throttled to ~20 Hz (Forza sends at 60 Hz).
 - **`Telemetry/ForzaPacket.cs`** – Parses the Forza "Car Dash V2" packet. Accounts for the 12-byte `HorizonPlaceholder` that shifts the dash section relative to the FM7 layout (e.g. Speed 244 → 256, Gear 307 → 319). Rejects packets while in a menu/paused (`IsRaceOn == 0`) and sanitizes faulty secondary values instead of dropping the whole packet.
 - **`Mode/ForzaExclusiveProvider.cs`** – Builds the HUD layout from the current packet and handles button/touch input.
-- **`Commands/ActivateCommand.cs`** – The re-arm command.
+- **`Commands/ActivateCommand.cs`** – The "Show Forza HUD" start command (`ForzaHorizon6.Activate`).
 - **`ForzaHorizon6Plugin.cs`** – Entry point; wires up the listener, provider and command.
 
 ## Requirements
 
 - .NET SDK **9.0**
-- LoupixDeck host with `LoupixDeck.PluginSdk` **1.6**
+- LoupixDeck host with `LoupixDeck.PluginSdk` **1.19**
 - Forza Horizon with **Data Out** enabled (Settings → HUD/Gameplay → Data Out):
   - Data output **ON**
   - IP of the machine running the LoupixDeck host

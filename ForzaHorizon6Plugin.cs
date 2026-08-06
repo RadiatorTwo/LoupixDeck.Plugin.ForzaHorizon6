@@ -7,9 +7,11 @@ using LoupixDeck.PluginSdk;
 namespace LoupixDeck.Plugin.ForzaHorizon6;
 
 /// <summary>
-/// Forza Horizon Data-Out plugin. Listens on UDP, takes over the device via
-/// exclusive mode when packets arrive, and shows live speed/gear/RPM until the
-/// user pressed the exit button. The activate command re-arms the auto-enter.
+/// Forza Horizon Data-Out plugin. Listens on UDP and shows live speed/gear/RPM in a full-device HUD.
+/// The HUD is started explicitly by the <c>ForzaHorizon6.Activate</c> command (never automatically):
+/// while active it takes the device over via exclusive mode and renders incoming telemetry; the user
+/// leaves it with the EXIT tile, and it does not reappear on its own. The UDP listener runs for the
+/// whole plugin lifetime, but its packets are only rendered while the HUD is active.
 /// </summary>
 public sealed class ForzaHorizon6Plugin : LoupixPlugin
 {
@@ -29,13 +31,12 @@ public sealed class ForzaHorizon6Plugin : LoupixPlugin
     private ForzaExclusiveProvider? _provider;
     private ForzaUdpListener? _listener;
     private ActivateCommand? _activateCommand;
-    private volatile bool _userDisabled;
 
     public override void Initialize(IPluginHost host)
     {
         _host = host;
-        _provider = new ForzaExclusiveProvider(host, () => _userDisabled = true);
-        _activateCommand = new ActivateCommand(() => _userDisabled = false);
+        _provider = new ForzaExclusiveProvider(host);
+        _activateCommand = new ActivateCommand(StartHud);
 
         var port = host.Settings.Get("port", DefaultPort);
         _listener = new ForzaUdpListener(port, OnPacket, msg => host.Logger.Error(msg));
@@ -44,21 +45,24 @@ public sealed class ForzaHorizon6Plugin : LoupixPlugin
         host.Logger.Info($"Forza Horizon plugin listening on UDP {port}.");
     }
 
-    private void OnPacket(ForzaPacket pkt)
+    /// <summary>Starts the HUD on demand (the ForzaHorizon6.Activate command). Enters exclusive mode
+    /// so telemetry is rendered; no-op if it is already showing, warns if another exclusive takeover
+    /// owns the display.</summary>
+    private void StartHud()
     {
         if (_host == null || _provider == null) return;
-        if (_userDisabled) return;
+        if (_provider.IsActive) return;
 
-        if (!_host.IsInExclusiveMode)
-        {
-            // Request the takeover lazily on the first packet. If another
-            // plugin already owns the device, drop the sample silently —
-            // the next packet will retry.
-            if (!_host.RequestExclusiveMode(_provider))
-                return;
-        }
+        if (!_host.RequestExclusiveMode(_provider))
+            _host.Logger.Warn("Forza HUD: the display is already in use by another exclusive mode.");
+    }
 
-        _provider.PushPacket(pkt);
+    private void OnPacket(ForzaPacket pkt)
+    {
+        // Only render telemetry while the HUD is showing. The command (not a packet) starts it, so a
+        // packet arriving never triggers a takeover.
+        if (_provider is { IsActive: true })
+            _provider.PushPacket(pkt);
     }
 
     public override IEnumerable<IPluginCommand> GetCommands()
@@ -81,7 +85,7 @@ public sealed class ForzaHorizon6Plugin : LoupixPlugin
     {
         try { _listener?.Dispose(); } catch { /* best effort */ }
 
-        if (_host != null && _provider != null && _host.IsInExclusiveMode)
+        if (_host != null && _provider is { IsActive: true })
         {
             try { _host.ReleaseExclusiveMode(_provider); } catch { /* best effort */ }
         }
