@@ -5,15 +5,16 @@ namespace LoupixDeck.Plugin.ForzaHorizon6.Mode;
 
 /// <summary>
 /// Drives the Forza HUD while exclusive mode is active. Top row (slots 0–4):
-/// EXIT hint (also simple button 0), speed, gear, RPM, grip warning. Slots 5/6
-/// and 10/11 form a 2x2 tire-corner block (FL/FR over RL/RR). Other inputs are
-/// no-ops. The layout targets the 5x3 Loupedeck Live S grid.
+/// EXIT tile, speed, gear, RPM, grip warning. Slots 5/6 and 10/11 form a 2x2
+/// tire-corner block (FL/FR over RL/RR). The layout targets the 5x3 Loupedeck
+/// Live S grid.
+///
+/// The HUD only claims the touch grid (see <see cref="Scope"/>), so the dials,
+/// the hardware buttons and the side displays keep running the user's own page
+/// assignments while it is up.
 /// </summary>
 public sealed class ForzaExclusiveProvider : IExclusiveModeProvider
 {
-    // SimpleButton index 0 acts as the manual exit. Matches the device's
-    // first physical side button, which the user agreed on as the convention.
-    private const int ExitButtonIndex = 0;
     private const int ExitSlotIndex = 0;
     private const int SpeedSlotIndex = 1;
     private const int GearSlotIndex = 2;
@@ -66,6 +67,12 @@ public sealed class ForzaExclusiveProvider : IExclusiveModeProvider
     /// <see cref="OnEnter"/>/<see cref="OnExit"/>, which the host also calls when a profile/workspace
     /// switch force-exits the takeover — so the plugin stops feeding packets in every exit path.</summary>
     public bool IsActive => _isActive;
+
+    // The HUD is a grid of tiles and nothing else: it draws no side-strip content and
+    // reads no dial or hardware button. Claiming only TouchButtons leaves the rest of
+    // the device on the user's normal assignments — they can keep adjusting volume,
+    // switching rotary pages or firing macros while the telemetry runs.
+    public ExclusiveControlScope Scope => ExclusiveControlScope.TouchButtons;
 
     // The HUD changes only a few tiles per packet (speed/gear/rpm/grip flicker,
     // tire temps drift slowly) — most stay identical frame to frame. DirtyTiles
@@ -237,21 +244,19 @@ public sealed class ForzaExclusiveProvider : IExclusiveModeProvider
         return (label, color);
     }
 
-    public void OnSimpleButtonPressed(int index)
-    {
-        if (index == ExitButtonIndex) RequestExit();
-    }
-
     public void OnTouchPressed(int slotIndex)
     {
-        // Touching the EXIT slot mirrors pressing the exit hardware button —
-        // helpful when the user remembers the visual hint before the button.
+        // The EXIT tile is the only way out of the HUD — the hardware buttons and dials
+        // are outside our scope and run the user's own commands instead.
         if (slotIndex == ExitSlotIndex) RequestExit();
     }
 
-    public void OnRotaryPressed(int index) { /* v1: no-op */ }
+    // Never raised under our scope; the host routes these to the user's assignments.
+    public void OnSimpleButtonPressed(int index) { }
 
-    public void OnRotated(int index, int delta) { /* v1: no-op */ }
+    public void OnRotaryPressed(int index) { }
+
+    public void OnRotated(int index, int delta) { }
 
     private void RequestExit()
     {
